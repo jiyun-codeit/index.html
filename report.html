@@ -40,6 +40,7 @@ textarea {
   transition: border-color 0.15s;
 }
 textarea:focus { border-color: #8b7cf8; }
+textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
 .upload-area {
   border: 2px dashed #d9d9d6;
   border-radius: 8px;
@@ -73,10 +74,12 @@ textarea:focus { border-color: #8b7cf8; }
   flex-wrap: wrap;
   font-size: 13px;
   color: #555;
-  align-items: center;
+  align-items: flex-start;
 }
-.settings-row label { display: flex; align-items: center; gap: 6px; }
-.settings-row input[type="time"] {
+.settings-row label { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.settings-row label.stack { flex-direction: column; align-items: flex-start; gap: 4px; }
+.settings-row input[type="time"],
+.settings-row input[type="date"] {
   font-size: 13px;
   padding: 4px 8px;
   border: 1px solid #d9d9d6;
@@ -84,6 +87,16 @@ textarea:focus { border-color: #8b7cf8; }
   background: #fafafa;
   outline: none;
 }
+.settings-row input[type="text"],
+.settings-row input[type="number"] {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d6;
+  border-radius: 6px;
+  background: #fafafa;
+  outline: none;
+}
+.divider { height: 1px; background: #e5e5e3; }
 .report-tabs { display: flex; gap: 6px; }
 .tab {
   font-size: 13px;
@@ -111,11 +124,7 @@ textarea:focus { border-color: #8b7cf8; }
 }
 .copy-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .copy-done { font-size: 12px; color: #22a06b; opacity: 0; transition: opacity 0.3s; }
-.status-bar {
-  font-size: 12px;
-  color: #888;
-  padding: 6px 0;
-}
+.status-bar { font-size: 12px; color: #888; padding: 6px 0; }
 .status-bar.ok { color: #22a06b; }
 .status-bar.err { color: #e5534b; }
 .col-map {
@@ -142,7 +151,7 @@ textarea:focus { border-color: #8b7cf8; }
   background: #fff;
   outline: none;
 }
-.divider { height: 1px; background: #e5e5e3; }
+.hint { font-size: 11px; color: #aaa; }
 </style>
 </head>
 <body>
@@ -152,40 +161,44 @@ textarea:focus { border-color: #8b7cf8; }
     출결 보고 생성기
   </h1>
 
-  <!-- 설정 -->
+  <!-- 기준 설정 -->
   <div class="card">
     <div class="card-title">기준 설정</div>
     <div class="settings-row">
-      <label>과정명 <input type="text" id="course-name" placeholder="예) 웹개발 1기" style="width:160px;font-size:13px;padding:4px 8px;border:1px solid #d9d9d6;border-radius:6px;outline:none;" /></label>
+      <label>과정명 <input type="text" id="course-name" placeholder="예) 웹개발_1기" style="width:160px;" /></label>
+      <label>날짜 <input type="date" id="report-date" /></label>
       <label>지각 기준 <input type="time" id="late-threshold" value="09:11" /></label>
       <label>조퇴 기준 <input type="time" id="early-leave-threshold" value="18:50" /></label>
+    </div>
+    <div class="divider"></div>
+    <div class="settings-row">
+      <label class="stack" style="gap:8px;">
+        출석입력요청 검토 결과
+        <label style="gap:6px;">검토 대상 <input type="number" id="review-count" value="0" style="width:55px;" min="0" /></label>
+        <label style="gap:6px;">검토 결과 <input type="text" id="review-result" value="이상 없음" style="width:160px;" /></label>
+      </label>
     </div>
   </div>
 
   <!-- 데이터 입력 -->
   <div class="card">
     <div class="card-title">출결 데이터 입력</div>
-
-    <!-- 파일 업로드 -->
     <div class="upload-area" onclick="document.getElementById('file-input').click()">
       <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(event)" />
       📂 xlsx 파일 클릭하여 업로드
     </div>
-
     <div style="text-align:center;font-size:12px;color:#aaa;">또는</div>
-
-    <!-- 붙여넣기 -->
     <textarea id="paste-area" placeholder="엑셀에서 전체 선택(Ctrl+A) → 복사(Ctrl+C) 후 여기에 붙여넣기 (Ctrl+V)"></textarea>
 
-    <!-- 열 번호 자동 감지 결과 / 수동 설정 -->
     <div id="col-map" class="col-map">
       <div style="font-weight:600;margin-bottom:4px;">열 번호 수동 설정 (0부터 시작)</div>
       <div class="col-map-row"><label>성명</label><input id="col-name" type="number" value="1" min="0" /></div>
       <div class="col-map-row"><label>훈련상태</label><input id="col-status" type="number" value="5" min="0" /></div>
-      <div class="col-map-row"><label>입실시각</label><input id="col-entry" type="number" value="6" min="0" /></div>
-      <div class="col-map-row"><label>퇴실시각</label><input id="col-exit" type="number" value="7" min="0" /></div>
-      <div class="col-map-row"><label>외출시작</label><input id="col-out-start" type="number" value="8" min="0" /></div>
-      <div class="col-map-row"><label>외출복귀</label><input id="col-out-end" type="number" value="9" min="0" /></div>
+      <div class="col-map-row"><label>출결상태</label><input id="col-attend" type="number" value="6" min="0" /></div>
+      <div class="col-map-row"><label>입실시각</label><input id="col-entry" type="number" value="7" min="0" /></div>
+      <div class="col-map-row"><label>퇴실시각</label><input id="col-exit" type="number" value="8" min="0" /></div>
+      <div class="col-map-row"><label>외출시작</label><input id="col-out-start" type="number" value="9" min="0" /></div>
+      <div class="col-map-row"><label>외출복귀</label><input id="col-out-end" type="number" value="10" min="0" /></div>
     </div>
 
     <div class="row">
@@ -213,10 +226,17 @@ textarea:focus { border-color: #8b7cf8; }
 </div>
 
 <script>
-let parsedRows = [];
-let cols = { name:1, status:5, entry:6, exit:7, outStart:8, outEnd:9 };
 let reports = { morning:'', afternoon:'', final:'' };
 let activeTab = 'morning';
+
+// 날짜 기본값 = 오늘
+(function() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const d = String(now.getDate()).padStart(2,'0');
+  document.getElementById('report-date').value = `${y}-${m}-${d}`;
+})();
 
 // ── 파일 업로드 ──────────────────────────────────────────
 function handleFile(e) {
@@ -233,32 +253,33 @@ function handleFile(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ── 붙여넣기 파싱 ────────────────────────────────────────
 function parseRows(text) {
   return text.trim().split('\n').map(r => r.split('\t').map(c => c.trim()));
 }
 
-// ── 열 자동 감지 ─────────────────────────────────────────
+function isEmpty(v) {
+  return !v || v === '-' || v === '' || v === 'null' || v === 'undefined';
+}
+
 function autoDetectCols(rows) {
-  const headers = rows.slice(0, 5); // 상위 5행에서 헤더 찾기
-  const map = { name:-1, status:-1, entry:-1, exit:-1, outStart:-1, outEnd:-1 };
-  headers.forEach(row => {
+  const map = { name:-1, status:-1, attend:-1, entry:-1, exit:-1, outStart:-1, outEnd:-1 };
+  rows.slice(0, 3).forEach(row => {
     row.forEach((cell, i) => {
-      const c = cell.replace(/\s/g,'');
-      if (c === '성명' && map.name === -1) map.name = i;
-      if ((c === '훈련상태' || c === '상태') && map.status === -1) map.status = i;
-      if (c.includes('입실') && map.entry === -1) map.entry = i;
-      if (c.includes('퇴실') && map.exit === -1) map.exit = i;
-      if (c.includes('시작') && map.outStart === -1 && i > (map.exit > -1 ? map.exit : 6)) map.outStart = i;
-      if (c.includes('복귀') && map.outEnd === -1) map.outEnd = i;
+      const c = (cell||'').replace(/\s|\n/g,'');
+      if (c === '성명'   && map.name     === -1) map.name     = i;
+      if (c === '상태'   && map.status   === -1) map.status   = i;
+      if (c === '출결상태' && map.attend  === -1) map.attend   = i;
+      if (c.includes('입실') && map.entry   === -1) map.entry   = i;
+      if (c.includes('퇴실') && map.exit    === -1) map.exit    = i;
+      if (c.includes('시작') && map.outStart === -1 && i > Math.max(map.exit,7)) map.outStart = i;
+      if (c.includes('복귀') && map.outEnd   === -1) map.outEnd  = i;
     });
   });
   return map;
 }
 
-// ── 시간 파싱 (HH:MM or HH:MM:SS) ───────────────────────
 function parseTime(s) {
-  if (!s) return null;
+  if (isEmpty(s)) return null;
   const m = s.match(/(\d{1,2}):(\d{2})/);
   return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
 }
@@ -267,7 +288,7 @@ function timeToMin(hhmm) {
   return h * 60 + m;
 }
 function fmtTime(s) {
-  if (!s) return '';
+  if (isEmpty(s)) return '';
   const m = s.match(/(\d{1,2}:\d{2})/);
   return m ? m[1] : s;
 }
@@ -280,10 +301,10 @@ function analyze() {
   const rows = parseRows(text);
   const detected = autoDetectCols(rows);
 
-  // 자동 감지된 값이 있으면 반영, 없으면 수동 입력값 사용
   const c = {
     name:     detected.name     >= 0 ? detected.name     : parseInt(document.getElementById('col-name').value),
     status:   detected.status   >= 0 ? detected.status   : parseInt(document.getElementById('col-status').value),
+    attend:   detected.attend   >= 0 ? detected.attend   : parseInt(document.getElementById('col-attend').value),
     entry:    detected.entry    >= 0 ? detected.entry    : parseInt(document.getElementById('col-entry').value),
     exit:     detected.exit     >= 0 ? detected.exit     : parseInt(document.getElementById('col-exit').value),
     outStart: detected.outStart >= 0 ? detected.outStart : parseInt(document.getElementById('col-out-start').value),
@@ -291,149 +312,166 @@ function analyze() {
   };
 
   // 열 번호 UI 업데이트
-  document.getElementById('col-name').value = c.name;
-  document.getElementById('col-status').value = c.status;
-  document.getElementById('col-entry').value = c.entry;
-  document.getElementById('col-exit').value = c.exit;
+  document.getElementById('col-name').value     = c.name;
+  document.getElementById('col-status').value   = c.status;
+  document.getElementById('col-attend').value   = c.attend;
+  document.getElementById('col-entry').value    = c.entry;
+  document.getElementById('col-exit').value     = c.exit;
   document.getElementById('col-out-start').value = c.outStart;
-  document.getElementById('col-out-end').value = c.outEnd;
+  document.getElementById('col-out-end').value  = c.outEnd;
 
-  const lateMin = timeToMin(document.getElementById('late-threshold').value);
+  const lateMin  = timeToMin(document.getElementById('late-threshold').value);
   const earlyMin = timeToMin(document.getElementById('early-leave-threshold').value);
-  const course = document.getElementById('course-name').value.trim();
+  const course   = document.getElementById('course-name').value.trim();
 
-  // 데이터 행 필터 (헤더 제거 + 훈련중인 수강생만)
+  // 날짜
+  const dateVal = document.getElementById('report-date').value;
+  const DAY_NAMES = ['일','월','화','수','목','금','토'];
+  let reportDate;
+  if (dateVal) {
+    const [y,m,d] = dateVal.split('-').map(Number);
+    reportDate = new Date(y, m-1, d);
+  } else {
+    reportDate = new Date();
+  }
+  const dateStr = `${reportDate.getMonth()+1}/${reportDate.getDate()}(${DAY_NAMES[reportDate.getDay()]})`;
+  const courseLabel = course ? `[${course}] ` : '';
+
+  // 출석입력요청 검토
+  const reviewCount  = parseInt(document.getElementById('review-count').value) || 0;
+  const reviewResult = document.getElementById('review-result').value.trim() || '이상 없음';
+
+  // 데이터 행 필터 — 헤더 제거(연번이 숫자) + 제적/수료 제외 + 휴공가 제외
+  const exclude = ['중도탈락','조기취업','수료','훈련포기','자진퇴소'];
   const dataRows = rows.filter(r => {
     if (r.length <= c.name) return false;
-    const name = r[c.name];
-    if (!name || name === '성명' || name === '') return false;
+    const name = r[c.name] || '';
+    if (!name || name === '성명') return false;
+    if (isNaN(parseInt(r[0]))) return false;
     const status = c.status >= 0 ? (r[c.status] || '') : '';
-    // 중도탈락, 조기취업, 수료 제외
-    const exclude = ['중도탈락','조기취업','수료','훈련포기','자진퇴소'];
     return !exclude.some(ex => status.includes(ex));
   });
 
   if (dataRows.length === 0) {
-    setStatus('⚠ 훈련중 수강생 데이터를 찾지 못했어요. 열 번호를 수동으로 확인해주세요.', 'err');
+    setStatus('⚠ 수강생 데이터를 찾지 못했어요. 열 번호를 수동으로 확인해주세요.', 'err');
     return;
   }
 
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
   const total = dataRows.length;
 
   // 수강생 분류
-  const absent   = []; // 미입실 (입실시각 없음)
-  const late     = []; // 지각 (입실시각 >= 기준)
-  const earlyLeave = []; // 조퇴 (퇴실시각 < 기준)
-  const outing   = []; // 외출 (외출시작 있음)
-  const absent2  = []; // 최종 결석 (입실+퇴실 모두 없음)
+  const absent     = []; // { name }
+  const late       = []; // { name, time }
+  const earlyLeave = []; // { name, time }
+  const outing     = []; // { name, startTime, endTime|null }
+  const noExitQR   = []; // { name } — 입실 있으나 퇴실 없음
 
   dataRows.forEach(r => {
     const name = r[c.name] || '';
-    const entryRaw = c.entry >= 0 ? (r[c.entry] || '') : '';
-    const exitRaw  = c.exit  >= 0 ? (r[c.exit]  || '') : '';
+
+    const attendVal   = c.attend   >= 0 ? (r[c.attend]   || '') : '';
+    const entryRaw    = c.entry    >= 0 ? (r[c.entry]    || '') : '';
+    const exitRaw     = c.exit     >= 0 ? (r[c.exit]     || '') : '';
     const outStartRaw = c.outStart >= 0 ? (r[c.outStart] || '') : '';
     const outEndRaw   = c.outEnd   >= 0 ? (r[c.outEnd]   || '') : '';
 
-    const entryMin = parseTime(entryRaw);
-    const exitMin  = parseTime(exitRaw);
+    const entryMin    = parseTime(entryRaw);
+    const exitMin     = parseTime(exitRaw);
     const outStartMin = parseTime(outStartRaw);
+    const outEndMin   = parseTime(outEndRaw);
 
-    // 오전: 미입실 / 지각
-    if (!entryMin) {
-      absent.push(name);
-    } else if (entryMin >= lateMin) {
-      const lateBy = entryMin - lateMin;
-      late.push(`${name} ${fmtTime(entryRaw)} 입실`);
+    const isAbsent = attendVal === '결석' || (!entryMin && isEmpty(entryRaw));
+
+    if (isAbsent) {
+      absent.push({ name });
+    } else {
+      // 지각
+      if (entryMin !== null && entryMin >= lateMin) {
+        late.push({ name, time: fmtTime(entryRaw) });
+      }
+      // 퇴실 QR 미촬영
+      if (exitMin === null && isEmpty(exitRaw)) {
+        noExitQR.push({ name });
+      }
+      // 조퇴
+      if (exitMin !== null && exitMin < earlyMin) {
+        earlyLeave.push({ name, time: fmtTime(exitRaw) });
+      }
     }
 
-    // 외출
+    // 외출 — outStart에 실제 시간이 있을 때만
     if (outStartMin !== null) {
-      const endStr = outEndRaw ? fmtTime(outEndRaw) : '';
-      outing.push(`${name} ${fmtTime(outStartRaw)}~${endStr || '미복귀'}`);
-    }
-
-    // 조퇴
-    if (exitMin !== null && exitMin < earlyMin) {
-      earlyLeave.push(`${name} ${fmtTime(exitRaw)} 퇴실`);
-    }
-
-    // 최종 결석
-    if (!entryMin && !exitMin) {
-      absent2.push(name);
+      outing.push({
+        name,
+        startTime: fmtTime(outStartRaw),
+        endTime: outEndMin !== null ? fmtTime(outEndRaw) : null,
+      });
     }
   });
 
-  const courseLabel = course ? `[${course}] ` : '';
+  const presentCount = total - absent.length;
 
   // ── 오전 보고 ──
-  let morning = `${courseLabel}${dateStr} 오전 출결 현황\n`;
-  morning += `총 ${total}명\n`;
-  if (absent.length + late.length === 0) {
-    morning += `\n- 전원 정상 출석`;
-  } else {
-    if (absent.length > 0) {
-      morning += `\n- 미입실: ${absent.length}명`;
-      absent.forEach(n => morning += `\n  - ${n} (부재중)`);
-    }
-    if (late.length > 0) {
-      morning += `\n- 지각: ${late.length}명`;
-      late.forEach(n => morning += `\n  - ${n}`);
-    }
+  let morning = `${courseLabel}${dateStr} 오전 출결 현황 공유\n`;
+  morning += `• 출석: ${presentCount}명\n`;
+  const lateAbsentCount = absent.length + late.length;
+  morning += `• 지각/미입실: ${lateAbsentCount}명`;
+  if (lateAbsentCount > 0) {
+    late.forEach(({ name, time }) => { morning += `\n  ◦ ${name}(지각 ${time})`; });
+    absent.forEach(({ name }) => { morning += `\n  ◦ ${name}(미입실)`; });
   }
+  morning += `\n• 휴공가: 0명`;
 
   // ── 오후 보고 ──
-  let afternoon = `${courseLabel}${dateStr} 오후 출결 현황\n`;
-  afternoon += `총 ${total}명\n`;
-  if (absent.length > 0) {
-    afternoon += `\n- 미입실: ${absent.length}명`;
-    absent.forEach(n => afternoon += `\n  - ${n} (부재중)`);
-  }
+  let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
+  afternoon += `• ZEP 접속자: ${presentCount}명\n`;
+  afternoon += `• 외출: ${outing.length}명`;
   if (outing.length > 0) {
-    afternoon += `\n- 외출: ${outing.length}명`;
-    outing.forEach(n => afternoon += `\n  - ${n}`);
+    outing.forEach(({ name, startTime, endTime }) => {
+      const endStr = endTime ? endTime : '미복귀';
+      afternoon += `\n  ◦ ${name}: ${startTime}~${endStr} 외출`;
+    });
   }
-  if (absent.length === 0 && outing.length === 0) {
-    afternoon += `\n- 전원 정상 출석`;
-  }
+  afternoon += `\n• 추가 휴공가: 0명`;
 
   // ── 최종 보고 ──
-  const present = total - absent2.length;
-  let final = `${courseLabel}${dateStr} 최종 출결 현황\n`;
-  final += `총 ${total}명 | 출석 ${present}명 | 결석 ${absent2.length}명\n`;
-  if (absent2.length > 0) {
-    final += `\n- 결석: ${absent2.length}명`;
-    absent2.forEach(n => final += `\n  - ${n}`);
+  const irregular = [];
+  late.forEach(({ name, time }) => irregular.push(`${name}(지각 ${time})`));
+  outing.forEach(({ name, startTime, endTime }) => {
+    const endStr = endTime ? endTime : '미복귀';
+    irregular.push(`${name}(외출 ${startTime}~${endStr})`);
+  });
+  earlyLeave.forEach(({ name, time }) => irregular.push(`${name}(조퇴 ${time})`));
+
+  let final = `${courseLabel}${dateStr} 최종 확정 출결 공유\n`;
+  final += `• 출석: ${presentCount}명\n`;
+  final += `• 퇴실 QR 미촬영: ${noExitQR.length}명`;
+  if (noExitQR.length > 0) {
+    noExitQR.forEach(({ name }) => { final += `\n  ◦ ${name}`; });
   }
-  if (late.length > 0) {
-    final += `\n- 지각: ${late.length}명`;
-    late.forEach(n => final += `\n  - ${n}`);
+  final += `\n• 지각/외출/조퇴: ${irregular.length}명`;
+  if (irregular.length > 0) {
+    irregular.forEach(item => { final += `\n  ◦ ${item}`; });
   }
-  if (earlyLeave.length > 0) {
-    final += `\n- 조퇴: ${earlyLeave.length}명`;
-    earlyLeave.forEach(n => final += `\n  - ${n}`);
-  }
-  if (outing.length > 0) {
-    final += `\n- 외출: ${outing.length}명`;
-    outing.forEach(n => final += `\n  - ${n}`);
-  }
-  if (absent2.length === 0 && late.length === 0 && earlyLeave.length === 0 && outing.length === 0) {
-    final += `\n- 전원 정상 출석`;
-  }
+  final += `\n• 출석입력요청 검토 결과`;
+  final += `\n  ◦ 검토 대상: ${reviewCount}건`;
+  final += `\n  ◦ 검토 결과: ${reviewResult}`;
 
   reports = { morning, afternoon, final };
   document.getElementById('report-card').style.display = 'flex';
   switchTab(activeTab);
-  setStatus(`✅ 분석 완료 — 수강생 ${total}명 | 감지된 열: 성명(${c.name}) 훈련상태(${c.status}) 입실(${c.entry}) 퇴실(${c.exit}) 외출시작(${c.outStart}) 외출복귀(${c.outEnd})`, 'ok');
+  setStatus(
+    `✅ 분석 완료 — 총 ${total}명 | 출석 ${presentCount}명 | 지각/미입실 ${lateAbsentCount}명 | 외출 ${outing.length}명`,
+    'ok'
+  );
   document.getElementById('report-card').scrollIntoView({ behavior:'smooth' });
 }
 
 function switchTab(tab) {
   activeTab = tab;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => {
-    if (t.textContent.includes(tab === 'morning' ? '오전' : tab === 'afternoon' ? '오후' : '최종')) t.classList.add('active');
+    const labels = { morning:'오전', afternoon:'오후', final:'최종' };
+    t.classList.toggle('active', t.textContent.includes(labels[tab]));
   });
   document.getElementById('report-text').textContent = reports[tab] || '';
 }
@@ -451,8 +489,7 @@ function copyReport() {
 }
 
 function toggleColMap() {
-  const el = document.getElementById('col-map');
-  el.classList.toggle('show');
+  document.getElementById('col-map').classList.toggle('show');
 }
 
 function clearAll() {
@@ -467,6 +504,12 @@ function setStatus(msg, type) {
   el.textContent = msg;
   el.className = 'status-bar' + (type ? ' ' + type : '');
 }
+
+document.getElementById('paste-area').addEventListener('input', () => {
+  if (document.getElementById('paste-area').value.trim()) {
+    setStatus('데이터 감지됨. 분석하기를 눌러주세요.', '');
+  }
+});
 </script>
 </body>
 </html>
