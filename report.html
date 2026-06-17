@@ -416,7 +416,7 @@ function analyze() {
   const presentCount = total - absent.length;
 
   // ── 오전 보고 ──
-  let morning = `*${courseLabel}${dateStr} 오전 출결 현황 공유*\n`;
+  let morning = `${courseLabel}${dateStr} 오전 출결 현황 공유\n`;
   morning += `• 출석: ${presentCount}명\n`;
   const lateAbsentCount = absent.length + late.length;
   morning += `• 지각/미입실: ${lateAbsentCount}명`;
@@ -427,7 +427,7 @@ function analyze() {
   morning += `\n• 휴공가: 0명`;
 
   // ── 오후 보고 ──
-  let afternoon = `*${courseLabel}${dateStr} 오후 출결 현황 공유*\n`;
+  let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
   afternoon += `• ZEP 접속자: ${presentCount}명\n`;
   afternoon += `• 외출: ${outing.length}명`;
   if (outing.length > 0) {
@@ -447,7 +447,7 @@ function analyze() {
   });
   earlyLeave.forEach(({ name, time }) => irregular.push(`${name}(조퇴 ${time})`));
 
-  let final = `*${courseLabel}${dateStr} 최종 확정 출결 공유*\n`;
+  let final = `${courseLabel}${dateStr} 최종 확정 출결 공유\n`;
   final += `• 출석: ${presentCount}명\n`;
   final += `• 퇴실 QR 미촬영: ${noExitQR.length}명`;
   if (noExitQR.length > 0) {
@@ -480,14 +480,42 @@ function switchTab(tab) {
   document.getElementById('report-text').textContent = reports[tab] || '';
 }
 
+function textToHtml(text) {
+  // 첫 줄은 볼드, 나머지는 그대로
+  const lines = text.split('\n');
+  return lines.map((line, i) => {
+    const escaped = line
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    if (i === 0) return `<b>${escaped}</b>`;
+    return escaped;
+  }).join('<br>');
+}
+
 function copyReport() {
   const text = reports[activeTab];
   if (!text) return;
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed'; ta.style.opacity = '0';
-  document.body.appendChild(ta); ta.select();
-  document.execCommand('copy'); document.body.removeChild(ta);
+
+  // rich text(HTML) + plain text 동시에 클립보드에 올리기
+  const html = textToHtml(text);
+  const div = document.createElement('div');
+  div.setAttribute('contenteditable', 'true');
+  div.innerHTML = html;
+  div.style.position = 'fixed';
+  div.style.opacity = '0';
+  div.style.left = '-9999px';
+  document.body.appendChild(div);
+
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(div);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  document.execCommand('copy');
+  document.body.removeChild(div);
+  selection.removeAllRanges();
+
   const el = document.getElementById('copy-done');
   el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 1500);
 }
