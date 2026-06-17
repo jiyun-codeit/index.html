@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>출결 보고 생성기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f7f5;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+.wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.2rem; }
+h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+.card {
+  background: #fff;
+  border: 1px solid #e5e5e3;
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card-title { font-size: 13px; font-weight: 600; color: #6b6b6b; text-transform: uppercase; letter-spacing: 0.05em; }
+textarea {
+  width: 100%;
+  min-height: 120px;
+  font-size: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d6;
+  border-radius: 8px;
+  background: #fafafa;
+  resize: vertical;
+  outline: none;
+  font-family: monospace;
+  color: #1a1a1a;
+  transition: border-color 0.15s;
+}
+textarea:focus { border-color: #8b7cf8; }
+.upload-area {
+  border: 2px dashed #d9d9d6;
+  border-radius: 8px;
+  padding: 1.2rem;
+  text-align: center;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 13px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.upload-area:hover { border-color: #8b7cf8; background: #f9f8ff; color: #8b7cf8; }
+.upload-area input { display: none; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid #d9d9d6;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.btn:hover { background: #f2f2f0; }
+.btn-purple { background: #8b7cf8; color: #fff; border-color: #8b7cf8; }
+.btn-purple:hover { background: #7a6be0; }
+.btn-sm { font-size: 12px; padding: 6px 12px; }
+.settings-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #555;
+  align-items: center;
+}
+.settings-row label { display: flex; align-items: center; gap: 6px; }
+.settings-row input[type="time"] {
+  font-size: 13px;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d6;
+  border-radius: 6px;
+  background: #fafafa;
+  outline: none;
+}
+.report-tabs { display: flex; gap: 6px; }
+.tab {
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid #e5e5e3;
+  border-bottom: none;
+  background: #f7f7f5;
+  color: #999;
+  cursor: pointer;
+}
+.tab.active { background: #fff; color: #1a1a1a; font-weight: 600; }
+.report-box {
+  background: #f7f7f5;
+  border: 1px solid #e5e5e3;
+  border-radius: 0 10px 10px 10px;
+  padding: 1rem 1.1rem;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  min-height: 80px;
+  font-family: inherit;
+}
+.copy-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.copy-done { font-size: 12px; color: #22a06b; opacity: 0; transition: opacity 0.3s; }
+.status-bar {
+  font-size: 12px;
+  color: #888;
+  padding: 6px 0;
+}
+.status-bar.ok { color: #22a06b; }
+.status-bar.err { color: #e5534b; }
+.col-map {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  background: #f7f7f5;
+  border: 1px solid #e5e5e3;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #555;
+}
+.col-map.show { display: flex; }
+.col-map-row { display: flex; align-items: center; gap: 8px; }
+.col-map-row label { min-width: 80px; }
+.col-map-row input {
+  width: 60px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d6;
+  border-radius: 6px;
+  text-align: center;
+  background: #fff;
+  outline: none;
+}
+.divider { height: 1px; background: #e5e5e3; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b7cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    출결 보고 생성기
+  </h1>
+
+  <!-- 설정 -->
+  <div class="card">
+    <div class="card-title">기준 설정</div>
+    <div class="settings-row">
+      <label>과정명 <input type="text" id="course-name" placeholder="예) 웹개발 1기" style="width:160px;font-size:13px;padding:4px 8px;border:1px solid #d9d9d6;border-radius:6px;outline:none;" /></label>
+      <label>지각 기준 <input type="time" id="late-threshold" value="09:11" /></label>
+      <label>조퇴 기준 <input type="time" id="early-leave-threshold" value="18:50" /></label>
+    </div>
+  </div>
+
+  <!-- 데이터 입력 -->
+  <div class="card">
+    <div class="card-title">출결 데이터 입력</div>
+
+    <!-- 파일 업로드 -->
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(event)" />
+      📂 xlsx 파일 클릭하여 업로드
+    </div>
+
+    <div style="text-align:center;font-size:12px;color:#aaa;">또는</div>
+
+    <!-- 붙여넣기 -->
+    <textarea id="paste-area" placeholder="엑셀에서 전체 선택(Ctrl+A) → 복사(Ctrl+C) 후 여기에 붙여넣기 (Ctrl+V)"></textarea>
+
+    <!-- 열 번호 자동 감지 결과 / 수동 설정 -->
+    <div id="col-map" class="col-map">
+      <div style="font-weight:600;margin-bottom:4px;">열 번호 수동 설정 (0부터 시작)</div>
+      <div class="col-map-row"><label>성명</label><input id="col-name" type="number" value="1" min="0" /></div>
+      <div class="col-map-row"><label>훈련상태</label><input id="col-status" type="number" value="5" min="0" /></div>
+      <div class="col-map-row"><label>입실시각</label><input id="col-entry" type="number" value="6" min="0" /></div>
+      <div class="col-map-row"><label>퇴실시각</label><input id="col-exit" type="number" value="7" min="0" /></div>
+      <div class="col-map-row"><label>외출시작</label><input id="col-out-start" type="number" value="8" min="0" /></div>
+      <div class="col-map-row"><label>외출복귀</label><input id="col-out-end" type="number" value="9" min="0" /></div>
+    </div>
+
+    <div class="row">
+      <button class="btn btn-purple" onclick="analyze()">분석하기</button>
+      <button class="btn btn-sm" onclick="toggleColMap()">열 번호 수동 설정</button>
+      <button class="btn btn-sm" onclick="clearAll()">초기화</button>
+    </div>
+    <div id="status-bar" class="status-bar"></div>
+  </div>
+
+  <!-- 보고 출력 -->
+  <div class="card" id="report-card" style="display:none;">
+    <div class="card-title">보고 멘트</div>
+    <div class="report-tabs">
+      <div class="tab active" onclick="switchTab('morning')">오전 보고</div>
+      <div class="tab" onclick="switchTab('afternoon')">오후 보고</div>
+      <div class="tab" onclick="switchTab('final')">최종 보고</div>
+    </div>
+    <div class="report-box" id="report-text"></div>
+    <div class="copy-row">
+      <button class="btn btn-sm" onclick="copyReport()">복사하기</button>
+      <span class="copy-done" id="copy-done">복사됨!</span>
+    </div>
+  </div>
+</div>
+
+<script>
+let parsedRows = [];
+let cols = { name:1, status:5, entry:6, exit:7, outStart:8, outEnd:9 };
+let reports = { morning:'', afternoon:'', final:'' };
+let activeTab = 'morning';
+
+// ── 파일 업로드 ──────────────────────────────────────────
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const wb = XLSX.read(ev.target.result, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_csv(ws, { FS: '\t' });
+    document.getElementById('paste-area').value = raw;
+    setStatus('파일 로드 완료. 분석하기를 눌러주세요.', 'ok');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── 붙여넣기 파싱 ────────────────────────────────────────
+function parseRows(text) {
+  return text.trim().split('\n').map(r => r.split('\t').map(c => c.trim()));
+}
+
+// ── 열 자동 감지 ─────────────────────────────────────────
+function autoDetectCols(rows) {
+  const headers = rows.slice(0, 5); // 상위 5행에서 헤더 찾기
+  const map = { name:-1, status:-1, entry:-1, exit:-1, outStart:-1, outEnd:-1 };
+  headers.forEach(row => {
+    row.forEach((cell, i) => {
+      const c = cell.replace(/\s/g,'');
+      if (c === '성명' && map.name === -1) map.name = i;
+      if ((c === '훈련상태' || c === '상태') && map.status === -1) map.status = i;
+      if (c.includes('입실') && map.entry === -1) map.entry = i;
+      if (c.includes('퇴실') && map.exit === -1) map.exit = i;
+      if (c.includes('시작') && map.outStart === -1 && i > (map.exit > -1 ? map.exit : 6)) map.outStart = i;
+      if (c.includes('복귀') && map.outEnd === -1) map.outEnd = i;
+    });
+  });
+  return map;
+}
+
+// ── 시간 파싱 (HH:MM or HH:MM:SS) ───────────────────────
+function parseTime(s) {
+  if (!s) return null;
+  const m = s.match(/(\d{1,2}):(\d{2})/);
+  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
+}
+function timeToMin(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+function fmtTime(s) {
+  if (!s) return '';
+  const m = s.match(/(\d{1,2}:\d{2})/);
+  return m ? m[1] : s;
+}
+
+// ── 분석 ──────────────────────────────────────────────────
+function analyze() {
+  const text = document.getElementById('paste-area').value.trim();
+  if (!text) { setStatus('데이터를 먼저 입력해주세요.', 'err'); return; }
+
+  const rows = parseRows(text);
+  const detected = autoDetectCols(rows);
+
+  // 자동 감지된 값이 있으면 반영, 없으면 수동 입력값 사용
+  const c = {
+    name:     detected.name     >= 0 ? detected.name     : parseInt(document.getElementById('col-name').value),
+    status:   detected.status   >= 0 ? detected.status   : parseInt(document.getElementById('col-status').value),
+    entry:    detected.entry    >= 0 ? detected.entry    : parseInt(document.getElementById('col-entry').value),
+    exit:     detected.exit     >= 0 ? detected.exit     : parseInt(document.getElementById('col-exit').value),
+    outStart: detected.outStart >= 0 ? detected.outStart : parseInt(document.getElementById('col-out-start').value),
+    outEnd:   detected.outEnd   >= 0 ? detected.outEnd   : parseInt(document.getElementById('col-out-end').value),
+  };
+
+  // 열 번호 UI 업데이트
+  document.getElementById('col-name').value = c.name;
+  document.getElementById('col-status').value = c.status;
+  document.getElementById('col-entry').value = c.entry;
+  document.getElementById('col-exit').value = c.exit;
+  document.getElementById('col-out-start').value = c.outStart;
+  document.getElementById('col-out-end').value = c.outEnd;
+
+  const lateMin = timeToMin(document.getElementById('late-threshold').value);
+  const earlyMin = timeToMin(document.getElementById('early-leave-threshold').value);
+  const course = document.getElementById('course-name').value.trim();
+
+  // 데이터 행 필터 (헤더 제거 + 훈련중인 수강생만)
+  const dataRows = rows.filter(r => {
+    if (r.length <= c.name) return false;
+    const name = r[c.name];
+    if (!name || name === '성명' || name === '') return false;
+    const status = c.status >= 0 ? (r[c.status] || '') : '';
+    // 중도탈락, 조기취업, 수료 제외
+    const exclude = ['중도탈락','조기취업','수료','훈련포기','자진퇴소'];
+    return !exclude.some(ex => status.includes(ex));
+  });
+
+  if (dataRows.length === 0) {
+    setStatus('⚠ 훈련중 수강생 데이터를 찾지 못했어요. 열 번호를 수동으로 확인해주세요.', 'err');
+    return;
+  }
+
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+  const total = dataRows.length;
+
+  // 수강생 분류
+  const absent   = []; // 미입실 (입실시각 없음)
+  const late     = []; // 지각 (입실시각 >= 기준)
+  const earlyLeave = []; // 조퇴 (퇴실시각 < 기준)
+  const outing   = []; // 외출 (외출시작 있음)
+  const absent2  = []; // 최종 결석 (입실+퇴실 모두 없음)
+
+  dataRows.forEach(r => {
+    const name = r[c.name] || '';
+    const entryRaw = c.entry >= 0 ? (r[c.entry] || '') : '';
+    const exitRaw  = c.exit  >= 0 ? (r[c.exit]  || '') : '';
+    const outStartRaw = c.outStart >= 0 ? (r[c.outStart] || '') : '';
+    const outEndRaw   = c.outEnd   >= 0 ? (r[c.outEnd]   || '') : '';
+
+    const entryMin = parseTime(entryRaw);
+    const exitMin  = parseTime(exitRaw);
+    const outStartMin = parseTime(outStartRaw);
+
+    // 오전: 미입실 / 지각
+    if (!entryMin) {
+      absent.push(name);
+    } else if (entryMin >= lateMin) {
+      const lateBy = entryMin - lateMin;
+      late.push(`${name} ${fmtTime(entryRaw)} 입실`);
+    }
+
+    // 외출
+    if (outStartMin !== null) {
+      const endStr = outEndRaw ? fmtTime(outEndRaw) : '';
+      outing.push(`${name} ${fmtTime(outStartRaw)}~${endStr || '미복귀'}`);
+    }
+
+    // 조퇴
+    if (exitMin !== null && exitMin < earlyMin) {
+      earlyLeave.push(`${name} ${fmtTime(exitRaw)} 퇴실`);
+    }
+
+    // 최종 결석
+    if (!entryMin && !exitMin) {
+      absent2.push(name);
+    }
+  });
+
+  const courseLabel = course ? `[${course}] ` : '';
+
+  // ── 오전 보고 ──
+  let morning = `${courseLabel}${dateStr} 오전 출결 현황\n`;
+  morning += `총 ${total}명\n`;
+  if (absent.length + late.length === 0) {
+    morning += `\n- 전원 정상 출석`;
+  } else {
+    if (absent.length > 0) {
+      morning += `\n- 미입실: ${absent.length}명`;
+      absent.forEach(n => morning += `\n  - ${n} (부재중)`);
+    }
+    if (late.length > 0) {
+      morning += `\n- 지각: ${late.length}명`;
+      late.forEach(n => morning += `\n  - ${n}`);
+    }
+  }
+
+  // ── 오후 보고 ──
+  let afternoon = `${courseLabel}${dateStr} 오후 출결 현황\n`;
+  afternoon += `총 ${total}명\n`;
+  if (absent.length > 0) {
+    afternoon += `\n- 미입실: ${absent.length}명`;
+    absent.forEach(n => afternoon += `\n  - ${n} (부재중)`);
+  }
+  if (outing.length > 0) {
+    afternoon += `\n- 외출: ${outing.length}명`;
+    outing.forEach(n => afternoon += `\n  - ${n}`);
+  }
+  if (absent.length === 0 && outing.length === 0) {
+    afternoon += `\n- 전원 정상 출석`;
+  }
+
+  // ── 최종 보고 ──
+  const present = total - absent2.length;
+  let final = `${courseLabel}${dateStr} 최종 출결 현황\n`;
+  final += `총 ${total}명 | 출석 ${present}명 | 결석 ${absent2.length}명\n`;
+  if (absent2.length > 0) {
+    final += `\n- 결석: ${absent2.length}명`;
+    absent2.forEach(n => final += `\n  - ${n}`);
+  }
+  if (late.length > 0) {
+    final += `\n- 지각: ${late.length}명`;
+    late.forEach(n => final += `\n  - ${n}`);
+  }
+  if (earlyLeave.length > 0) {
+    final += `\n- 조퇴: ${earlyLeave.length}명`;
+    earlyLeave.forEach(n => final += `\n  - ${n}`);
+  }
+  if (outing.length > 0) {
+    final += `\n- 외출: ${outing.length}명`;
+    outing.forEach(n => final += `\n  - ${n}`);
+  }
+  if (absent2.length === 0 && late.length === 0 && earlyLeave.length === 0 && outing.length === 0) {
+    final += `\n- 전원 정상 출석`;
+  }
+
+  reports = { morning, afternoon, final };
+  document.getElementById('report-card').style.display = 'flex';
+  switchTab(activeTab);
+  setStatus(`✅ 분석 완료 — 수강생 ${total}명 | 감지된 열: 성명(${c.name}) 훈련상태(${c.status}) 입실(${c.entry}) 퇴실(${c.exit}) 외출시작(${c.outStart}) 외출복귀(${c.outEnd})`, 'ok');
+  document.getElementById('report-card').scrollIntoView({ behavior:'smooth' });
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.includes(tab === 'morning' ? '오전' : tab === 'afternoon' ? '오후' : '최종')) t.classList.add('active');
+  });
+  document.getElementById('report-text').textContent = reports[tab] || '';
+}
+
+function copyReport() {
+  const text = reports[activeTab];
+  if (!text) return;
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); document.body.removeChild(ta);
+  const el = document.getElementById('copy-done');
+  el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 1500);
+}
+
+function toggleColMap() {
+  const el = document.getElementById('col-map');
+  el.classList.toggle('show');
+}
+
+function clearAll() {
+  document.getElementById('paste-area').value = '';
+  document.getElementById('file-input').value = '';
+  document.getElementById('report-card').style.display = 'none';
+  setStatus('');
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className = 'status-bar' + (type ? ' ' + type : '');
+}
+</script>
+</body>
+</html>
