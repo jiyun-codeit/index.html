@@ -165,7 +165,8 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
   <div class="card">
     <div class="card-title">기준 설정</div>
     <div class="settings-row">
-      <label>과정명 <input type="text" id="course-name" placeholder="예) 웹개발_1기" style="width:160px;" /></label>
+      <label>과정명 <input type="text" id="course-name" placeholder="예) DA" style="width:100px;" /></label>
+      <label>기수 <input type="number" id="course-gen" placeholder="13" style="width:60px;" min="1" /> 기</label>
       <label>날짜 <input type="date" id="report-date" /></label>
       <label>지각 기준 <input type="time" id="late-threshold" value="09:11" /></label>
       <label>조퇴 기준 <input type="time" id="early-leave-threshold" value="18:50" /></label>
@@ -323,6 +324,7 @@ function analyze() {
   const lateMin  = timeToMin(document.getElementById('late-threshold').value);
   const earlyMin = timeToMin(document.getElementById('early-leave-threshold').value);
   const course   = document.getElementById('course-name').value.trim();
+  const gen      = document.getElementById('course-gen').value.trim();
 
   // 날짜
   const dateVal = document.getElementById('report-date').value;
@@ -335,7 +337,9 @@ function analyze() {
     reportDate = new Date();
   }
   const dateStr = `${reportDate.getMonth()+1}/${reportDate.getDate()}(${DAY_NAMES[reportDate.getDay()]})`;
-  const courseLabel = course ? `[${course}] ` : '';
+  const courseLabel = course
+    ? `[${course}${gen ? `_${gen}기` : ''}] `
+    : '';
 
   // 출석입력요청 검토
   const reviewCount  = parseInt(document.getElementById('review-count').value) || 0;
