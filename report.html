@@ -416,7 +416,7 @@ function analyze() {
   const presentCount = total - absent.length;
 
   // ── 오전 보고 ──
-  let morning = `${courseLabel}${dateStr} 오전 출결 현황 공유\n`;
+  let morning = `*${courseLabel}${dateStr} 오전 출결 현황 공유*\n`;
   morning += `• 출석: ${presentCount}명\n`;
   const lateAbsentCount = absent.length + late.length;
   morning += `• 지각/미입실: ${lateAbsentCount}명`;
@@ -427,7 +427,7 @@ function analyze() {
   morning += `\n• 휴공가: 0명`;
 
   // ── 오후 보고 ──
-  let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
+  let afternoon = `*${courseLabel}${dateStr} 오후 출결 현황 공유*\n`;
   afternoon += `• ZEP 접속자: ${presentCount}명\n`;
   afternoon += `• 외출: ${outing.length}명`;
   if (outing.length > 0) {
@@ -447,7 +447,7 @@ function analyze() {
   });
   earlyLeave.forEach(({ name, time }) => irregular.push(`${name}(조퇴 ${time})`));
 
-  let final = `${courseLabel}${dateStr} 최종 확정 출결 공유\n`;
+  let final = `*${courseLabel}${dateStr} 최종 확정 출결 공유*\n`;
   final += `• 출석: ${presentCount}명\n`;
   final += `• 퇴실 QR 미촬영: ${noExitQR.length}명`;
   if (noExitQR.length > 0) {
