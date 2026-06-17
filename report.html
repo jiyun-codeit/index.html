@@ -481,14 +481,15 @@ function switchTab(tab) {
 }
 
 function textToHtml(text) {
-  // 첫 줄은 볼드, 나머지는 그대로
   const lines = text.split('\n');
   return lines.map((line, i) => {
-    const escaped = line
+    const isIndented = line.startsWith('  ');
+    const escaped = line.trim()
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
     if (i === 0) return `<b>${escaped}</b>`;
+    if (isIndented) return `&nbsp;&nbsp;&nbsp;&nbsp;${escaped}`;
     return escaped;
   }).join('<br>');
 }
