@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>수강생 불시점검 타이머</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f7f5;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+.wrap {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.add-row {
+  display: flex;
+  gap: 8px;
+}
+.add-row input {
+  flex: 1;
+  font-size: 14px;
+  padding: 9px 12px;
+  border: 1px solid #d9d9d6;
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.add-row input:focus { border-color: #8b7cf8; }
+.add-row input::placeholder { color: #aaa; }
+.btn {
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid #d9d9d6;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.btn:hover { background: #f2f2f0; }
+.btn-purple {
+  background: #8b7cf8;
+  color: #fff;
+  border-color: #8b7cf8;
+}
+.btn-purple:hover { background: #7a6be0; }
+.btn-red {
+  background: #fff;
+  color: #e5534b;
+  border-color: #e5534b;
+}
+.btn-red:hover { background: #fff0ef; }
+.btn-green {
+  background: #22a06b;
+  color: #fff;
+  border-color: #22a06b;
+}
+.btn-green:hover { background: #1a8c5a; }
+
+.student-card {
+  background: #fff;
+  border: 1px solid #e5e5e3;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+.student-card.away {
+  border-color: #f0a04b;
+  background: #fffaf4;
+}
+.student-card.over {
+  border-color: #e5534b;
+  background: #fff5f4;
+}
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.student-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+.status-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.badge-present { background: #e8f5ee; color: #22a06b; }
+.badge-away    { background: #fff0d9; color: #b35c00; }
+.badge-over    { background: #ffe8e7; color: #e5534b; }
+
+.timer-display {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.timer-display.away { color: #b35c00; }
+.timer-display.over { color: #e5534b; }
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.message-area {
+  background: #f7f7f5;
+  border: 1px solid #e5e5e3;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+.copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.copy-done {
+  font-size: 12px;
+  color: #22a06b;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.empty-state {
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+  padding: 2rem 0;
+}
+.offset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b6b6b;
+}
+.offset-row input {
+  width: 60px;
+  font-size: 14px;
+  padding: 6px 10px;
+  border: 1px solid #d9d9d6;
+  border-radius: 8px;
+  background: #fafafa;
+  outline: none;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b7cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    수강생 불시점검 타이머
+  </h1>
+
+  <div class="offset-row">
+    <span>복귀 제한 시간</span>
+    <input type="number" id="global-offset" value="15" min="1" max="60" />
+    <span>분 초과 시 경고</span>
+  </div>
+
+  <div class="add-row">
+    <input type="text" id="name-input" placeholder="수강생 이름 입력 후 Enter" />
+    <button class="btn btn-purple" onclick="addStudent()">+ 추가</button>
+  </div>
+
+  <div id="student-list">
+    <div class="empty-state">수강생을 추가하면 타이머가 시작됩니다.</div>
+  </div>
+</div>
+
+<script>
+const students = [];
+let ticker = null;
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function fmt(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return pad(m) + ':' + pad(s);
+}
+
+function getOffset() {
+  return (parseInt(document.getElementById('global-offset').value) || 15) * 60;
+}
+
+function addStudent() {
+  const inp = document.getElementById('name-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  students.push({ id: Date.now(), name, awayAt: null, elapsed: 0 });
+  inp.value = '';
+  render();
+  if (!ticker) ticker = setInterval(tick, 1000);
+}
+
+function removeStudent(id) {
+  const idx = students.findIndex(s => s.id === id);
+  if (idx !== -1) students.splice(idx, 1);
+  render();
+  if (students.length === 0 && ticker) { clearInterval(ticker); ticker = null; }
+}
+
+function toggleAway(id) {
+  const s = students.find(s => s.id === id);
+  if (!s) return;
+  if (s.awayAt === null) {
+    s.awayAt = new Date();
+    s.elapsed = 0;
+  } else {
+    s.awayAt = null;
+    s.elapsed = 0;
+  }
+  render();
+}
+
+function tick() {
+  let changed = false;
+  students.forEach(s => {
+    if (s.awayAt) {
+      s.elapsed = Math.floor((Date.now() - s.awayAt.getTime()) / 1000);
+      changed = true;
+    }
+  });
+  if (changed) render();
+}
+
+function buildMsg(s) {
+  const now = new Date();
+  const dateStr = (now.getMonth() + 1) + '/' + pad(now.getDate());
+  const awayAt = s.awayAt;
+  const h = awayAt.getHours(), m = awayAt.getMinutes();
+  const baseStr = h + ':' + pad(m);
+  const offset = parseInt(document.getElementById('global-offset').value) || 15;
+  const totalMin = h * 60 + m + offset;
+  const retStr = Math.floor(totalMin / 60) % 24 + ':' + pad(totalMin % 60);
+  return `안녕하세요 ${s.name}님, ${dateStr}, ${baseStr} 기준으로 수업 참여가 확인되지 않아 안내드립니다.\n${retStr}까지 복귀하지 않으실 경우, ${baseStr}부터 복귀 시점까지 외출로 반영될 수 있습니다.\n복귀시점은 이 DM에 주시는 답장을 기준으로 계산되니 복귀하셨다면 꼭 답장부탁드립니다. (15분 이하 자리비움은 출결에 영향을 주지 않습니다.)`;
+}
+
+function copyMsg(id) {
+  const s = students.find(s => s.id === id);
+  if (!s || !s.awayAt) return;
+  const text = buildMsg(s);
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  const el = document.getElementById('cd-' + id);
+  if (el) { el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 1500); }
+}
+
+function render() {
+  const list = document.getElementById('student-list');
+  if (students.length === 0) {
+    list.innerHTML = '<div class="empty-state">수강생을 추가하면 타이머가 시작됩니다.</div>';
+    return;
+  }
+  const limit = getOffset();
+  list.innerHTML = students.map(s => {
+    const isAway = s.awayAt !== null;
+    const isOver = isAway && s.elapsed >= limit;
+    const cardClass = isOver ? 'over' : isAway ? 'away' : '';
+    const badgeClass = isOver ? 'badge-over' : isAway ? 'badge-away' : 'badge-present';
+    const badgeText = isOver ? '⚠ 초과' : isAway ? '자리비움' : '정상';
+    const timerClass = isOver ? 'over' : isAway ? 'away' : '';
+    const timeStr = isAway ? fmt(s.elapsed) : '00:00';
+
+    const msgHtml = isAway ? `
+      <div class="message-area">${buildMsg(s)}</div>
+      <div class="copy-row">
+        <button class="btn" onclick="copyMsg(${s.id})">복사하기</button>
+        <span class="copy-done" id="cd-${s.id}">복사됨!</span>
+      </div>` : '';
+
+    return `
+      <div class="student-card ${cardClass}">
+        <div class="card-top">
+          <span class="student-name">${s.name}</span>
+          <span class="status-badge ${badgeClass}">${badgeText}</span>
+          <button class="btn" onclick="removeStudent(${s.id})" style="padding:5px 10px;font-size:12px;color:#aaa;">삭제</button>
+        </div>
+        <div class="timer-display ${timerClass}">${timeStr}</div>
+        <div class="card-actions">
+          ${isAway
+            ? `<button class="btn btn-green" onclick="toggleAway(${s.id})">복귀 완료</button>`
+            : `<button class="btn btn-red" onclick="toggleAway(${s.id})">자리비움 시작</button>`}
+        </div>
+        ${msgHtml}
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addStudent();
+});
+</script>
+</body>
+</html>
