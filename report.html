@@ -178,6 +178,10 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
         <label style="gap:6px;">검토 대상 <input type="number" id="review-count" value="0" style="width:55px;" min="0" /></label>
         <label style="gap:6px;">검토 결과 <input type="text" id="review-result" value="이상 없음" style="width:160px;" /></label>
       </label>
+      <label class="stack" style="gap:8px;">
+        오전 보고 휴공가 <span style="font-size:11px;color:#aaa;">(오후 추가분만 표시하려면 입력)</span>
+        <input type="text" id="morning-leave" placeholder="예) 서동혁,안찬형" style="width:220px;" />
+      </label>
     </div>
   </div>
 
@@ -231,7 +235,6 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
 let reports = { morning:'', afternoon:'', final:'' };
 let activeTab = 'morning';
 
-// 날짜 기본값 = 오늘
 (function() {
   const now = new Date();
   const y = now.getFullYear();
@@ -240,7 +243,6 @@ let activeTab = 'morning';
   document.getElementById('report-date').value = `${y}-${m}-${d}`;
 })();
 
-// ── 파일 업로드 ──────────────────────────────────────────
 function handleFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -265,7 +267,6 @@ function isEmpty(v) {
 
 function autoDetectCols(rows) {
   const map = { name:-1, status:-1, attend:-1, entry:-1, exit:-1, outStart:-1, outEnd:-1 };
-  // xlsx→CSV 변환 시 셀 안 개행으로 행이 쪼개짐 → 최소 열 번호 제약으로 오탐 방지
   rows.slice(0, 15).forEach(row => {
     row.forEach((cell, i) => {
       const c = (cell||'').replace(/[\s\n"]/g,'');
@@ -296,7 +297,6 @@ function fmtTime(s) {
   return m ? m[1] : s;
 }
 
-// ── 분석 ──────────────────────────────────────────────────
 function analyze() {
   const text = document.getElementById('paste-area').value.trim();
   if (!text) { setStatus('데이터를 먼저 입력해주세요.', 'err'); return; }
@@ -315,7 +315,6 @@ function analyze() {
     leaveStatus: parseInt(document.getElementById('col-leave-status').value),
   };
 
-  // 열 번호 UI 업데이트
   document.getElementById('col-name').value     = c.name;
   document.getElementById('col-status').value   = c.status;
   document.getElementById('col-attend').value   = c.attend;
@@ -329,7 +328,6 @@ function analyze() {
   const course   = document.getElementById('course-name').value.trim();
   const gen      = document.getElementById('course-gen').value.trim();
 
-  // 날짜
   const dateVal = document.getElementById('report-date').value;
   const DAY_NAMES = ['일','월','화','수','목','금','토'];
   let reportDate;
@@ -344,11 +342,9 @@ function analyze() {
     ? `[${course}${gen ? `_${gen}기` : ''}] `
     : '';
 
-  // 출석입력요청 검토
   const reviewCount  = parseInt(document.getElementById('review-count').value) || 0;
   const reviewResult = document.getElementById('review-result').value.trim() || '이상 없음';
 
-  // 데이터 행 필터 — 헤더 제거(연번이 숫자) + 제적/수료 제외 + 휴공가 제외
   const exclude = ['중도탈락','조기취업','수료','훈련포기','자진퇴소'];
   const dataRows = rows.filter(r => {
     if (r.length <= c.name) return false;
@@ -365,25 +361,21 @@ function analyze() {
   }
 
   const total = dataRows.length;
-
-  // 수강생 분류
-  const absent     = []; // { name }
-  const late       = []; // { name, time }
-  const earlyLeave = []; // { name, time }
-  const outing     = []; // { name, startTime, endTime|null }
-  const noExitQR   = []; // { name } — 입실 있으나 퇴실 없음
-  const leaveList  = []; // 공가/휴가 자동 감지
+  const absent     = [];
+  const late       = [];
+  const earlyLeave = [];
+  const outing     = [];
+  const noExitQR   = [];
+  const leaveList  = [];
 
   dataRows.forEach(r => {
     const name = r[c.name] || '';
-
     const entryRaw       = c.entry       >= 0 ? (r[c.entry]       || '') : '';
     const exitRaw        = c.exit        >= 0 ? (r[c.exit]        || '') : '';
     const outStartRaw    = c.outStart    >= 0 ? (r[c.outStart]    || '') : '';
     const outEndRaw      = c.outEnd      >= 0 ? (r[c.outEnd]      || '') : '';
     const leaveStatusRaw = c.leaveStatus >= 0 ? (r[c.leaveStatus] || '') : '';
 
-    // 휴공가 자동 감지 (M열)
     const isLeave = ['공가','휴가'].some(kw => leaveStatusRaw.includes(kw));
     if (isLeave) {
       leaveList.push(`${name}(${leaveStatusRaw})`);
@@ -395,27 +387,21 @@ function analyze() {
     const outStartMin = parseTime(outStartRaw);
     const outEndMin   = parseTime(outEndRaw);
 
-    // 결석: 입실시간 없으면 결석 (출결상태 칼럼 무시 — 입실시간 기준으로만 판단)
     const isAbsent = entryMin === null && isEmpty(entryRaw);
-
     if (isAbsent) {
       absent.push({ name });
     } else {
-      // 지각
       if (entryMin !== null && entryMin >= lateMin) {
         late.push({ name, time: fmtTime(entryRaw) });
       }
-      // 퇴실 QR 미촬영
       if (exitMin === null && isEmpty(exitRaw)) {
         noExitQR.push({ name });
       }
-      // 조퇴
       if (exitMin !== null && exitMin < earlyMin) {
         earlyLeave.push({ name, time: fmtTime(exitRaw) });
       }
     }
 
-    // 외출 — outStart에 실제 시간이 있을 때만
     if (outStartMin !== null) {
       outing.push({
         name,
@@ -427,7 +413,6 @@ function analyze() {
 
   const presentCount = total - leaveList.length - absent.length;
 
-  // ── 오전 보고 ──
   let morning = `${courseLabel}${dateStr} 오전 출결 현황 공유\n`;
   morning += `• 출석: ${presentCount}명\n`;
   const lateAbsentCount = absent.length + late.length;
@@ -441,7 +426,15 @@ function analyze() {
     leaveList.forEach(item => { morning += `\n  ◦ ${item}`; });
   }
 
-  // ── 오후 보고 ──
+  const morningLeaveInput = document.getElementById('morning-leave').value;
+  const morningLeaveNames = morningLeaveInput
+    .split(/[,，\s]+/)
+    .map(n => n.trim())
+    .filter(Boolean);
+  const additionalLeave = morningLeaveNames.length > 0
+    ? leaveList.filter(item => !morningLeaveNames.some(n => item === n || item.startsWith(n + '(')))
+    : leaveList;
+
   let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
   afternoon += `• ZEP 접속자: ${presentCount}명\n`;
   afternoon += `• 외출: ${outing.length}명`;
@@ -451,12 +444,11 @@ function analyze() {
       afternoon += `\n  ◦ ${name}: ${startTime}~${endStr} 외출`;
     });
   }
-  afternoon += `\n• 추가 휴공가: ${leaveList.length}명`;
-  if (leaveList.length > 0) {
-    leaveList.forEach(item => { afternoon += `\n  ◦ ${item}`; });
+  afternoon += `\n• 추가 휴공가: ${additionalLeave.length}명`;
+  if (additionalLeave.length > 0) {
+    additionalLeave.forEach(item => { afternoon += `\n  ◦ ${item}`; });
   }
 
-  // ── 최종 보고 ──
   const irregular = [];
   late.forEach(({ name, time }) => irregular.push(`${name}(지각 ${time})`));
   outing.forEach(({ name, startTime, endTime }) => {
@@ -515,8 +507,6 @@ function textToHtml(text) {
 function copyReport() {
   const text = reports[activeTab];
   if (!text) return;
-
-  // rich text(HTML) + plain text 동시에 클립보드에 올리기
   const html = textToHtml(text);
   const div = document.createElement('div');
   div.setAttribute('contenteditable', 'true');
@@ -525,7 +515,6 @@ function copyReport() {
   div.style.opacity = '0';
   div.style.left = '-9999px';
   document.body.appendChild(div);
-
   const selection = window.getSelection();
   const range = document.createRange();
   range.selectNodeContents(div);
@@ -534,7 +523,6 @@ function copyReport() {
   document.execCommand('copy');
   document.body.removeChild(div);
   selection.removeAllRanges();
-
   const el = document.getElementById('copy-done');
   el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 1500);
 }
