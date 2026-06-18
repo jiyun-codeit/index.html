@@ -179,8 +179,12 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
         <label style="gap:6px;">검토 결과 <input type="text" id="review-result" value="이상 없음" style="width:160px;" /></label>
       </label>
       <label class="stack" style="gap:8px;">
-        오전 보고 휴공가 <span style="font-size:11px;color:#aaa;">(오후 추가분만 표시하려면 입력)</span>
-        <input type="text" id="morning-leave" placeholder="예) 서동혁,안찬형" style="width:220px;" />
+        오전 보고 휴공가 <span style="font-size:11px;color:#aaa;">(오전 분석 후 저장 버튼 클릭)</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="morning-leave" placeholder="자동 저장 또는 직접 입력" style="width:200px;" />
+          <button class="btn btn-sm" onclick="saveMorningLeave()" style="white-space:nowrap;">오전 휴공가 저장</button>
+        </div>
+        <span id="morning-leave-status" style="font-size:11px;color:#aaa;"></span>
       </label>
     </div>
   </div>
@@ -234,6 +238,7 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
 <script>
 let reports = { morning:'', afternoon:'', final:'' };
 let activeTab = 'morning';
+let currentLeaveList = [];
 
 (function() {
   const now = new Date();
@@ -471,6 +476,7 @@ function analyze() {
   final += `\n  ◦ 검토 대상: ${reviewCount}건`;
   final += `\n  ◦ 검토 결과: ${reviewResult}`;
 
+  currentLeaveList = leaveList;
   reports = { morning, afternoon, final };
   document.getElementById('report-card').style.display = 'flex';
   switchTab(activeTab);
@@ -525,6 +531,18 @@ function copyReport() {
   selection.removeAllRanges();
   const el = document.getElementById('copy-done');
   el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 1500);
+}
+
+function saveMorningLeave() {
+  if (currentLeaveList.length === 0) {
+    alert('먼저 오전 데이터를 분석해주세요.');
+    return;
+  }
+  const names = currentLeaveList.map(item => item.replace(/\(.+\)$/, '').trim());
+  document.getElementById('morning-leave').value = names.join(',');
+  const statusEl = document.getElementById('morning-leave-status');
+  statusEl.textContent = '저장됨: ' + names.join(', ') + ' ✓';
+  statusEl.style.color = '#22a06b';
 }
 
 function toggleColMap() {
