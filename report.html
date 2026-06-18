@@ -184,10 +184,10 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
   <!-- 데이터 입력 -->
   <div class="card">
     <div class="card-title">출결 데이터 입력</div>
-    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+    <label class="upload-area" for="file-input">
       <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(event)" />
       📂 xlsx 파일 클릭하여 업로드
-    </div>
+    </label>
     <div style="text-align:center;font-size:12px;color:#aaa;">또는</div>
     <textarea id="paste-area" placeholder="엑셀에서 전체 선택(Ctrl+A) → 복사(Ctrl+C) 후 여기에 붙여넣기 (Ctrl+V)"></textarea>
 
@@ -200,6 +200,7 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
       <div class="col-map-row"><label>퇴실시각</label><input id="col-exit" type="number" value="8" min="0" /></div>
       <div class="col-map-row"><label>외출시작</label><input id="col-out-start" type="number" value="9" min="0" /></div>
       <div class="col-map-row"><label>외출복귀</label><input id="col-out-end" type="number" value="10" min="0" /></div>
+      <div class="col-map-row"><label>휴공가상태</label><input id="col-leave-status" type="number" value="12" min="0" /></div>
     </div>
 
     <div class="row">
@@ -309,7 +310,8 @@ function analyze() {
     entry:    detected.entry    >= 0 ? detected.entry    : parseInt(document.getElementById('col-entry').value),
     exit:     detected.exit     >= 0 ? detected.exit     : parseInt(document.getElementById('col-exit').value),
     outStart: detected.outStart >= 0 ? detected.outStart : parseInt(document.getElementById('col-out-start').value),
-    outEnd:   detected.outEnd   >= 0 ? detected.outEnd   : parseInt(document.getElementById('col-out-end').value),
+    outEnd:      detected.outEnd   >= 0 ? detected.outEnd   : parseInt(document.getElementById('col-out-end').value),
+    leaveStatus: parseInt(document.getElementById('col-leave-status').value),
   };
 
   // 열 번호 UI 업데이트
@@ -369,22 +371,31 @@ function analyze() {
   const earlyLeave = []; // { name, time }
   const outing     = []; // { name, startTime, endTime|null }
   const noExitQR   = []; // { name } — 입실 있으나 퇴실 없음
+  const leaveList  = []; // 공가/휴가 자동 감지
 
   dataRows.forEach(r => {
     const name = r[c.name] || '';
 
-    const attendVal   = c.attend   >= 0 ? (r[c.attend]   || '') : '';
-    const entryRaw    = c.entry    >= 0 ? (r[c.entry]    || '') : '';
-    const exitRaw     = c.exit     >= 0 ? (r[c.exit]     || '') : '';
-    const outStartRaw = c.outStart >= 0 ? (r[c.outStart] || '') : '';
-    const outEndRaw   = c.outEnd   >= 0 ? (r[c.outEnd]   || '') : '';
+    const entryRaw       = c.entry       >= 0 ? (r[c.entry]       || '') : '';
+    const exitRaw        = c.exit        >= 0 ? (r[c.exit]        || '') : '';
+    const outStartRaw    = c.outStart    >= 0 ? (r[c.outStart]    || '') : '';
+    const outEndRaw      = c.outEnd      >= 0 ? (r[c.outEnd]      || '') : '';
+    const leaveStatusRaw = c.leaveStatus >= 0 ? (r[c.leaveStatus] || '') : '';
+
+    // 휴공가 자동 감지 (M열)
+    const isLeave = ['공가','휴가'].some(kw => leaveStatusRaw.includes(kw));
+    if (isLeave) {
+      leaveList.push(`${name}(${leaveStatusRaw})`);
+      return;
+    }
 
     const entryMin    = parseTime(entryRaw);
     const exitMin     = parseTime(exitRaw);
     const outStartMin = parseTime(outStartRaw);
     const outEndMin   = parseTime(outEndRaw);
 
-    const isAbsent = attendVal === '결석' || (!entryMin && isEmpty(entryRaw));
+    // 결석: 입실시간 없으면 결석 (출결상태 칼럼 무시 — 입실시간 기준으로만 판단)
+    const isAbsent = entryMin === null && isEmpty(entryRaw);
 
     if (isAbsent) {
       absent.push({ name });
@@ -413,7 +424,7 @@ function analyze() {
     }
   });
 
-  const presentCount = total - absent.length;
+  const presentCount = total - leaveList.length - absent.length;
 
   // ── 오전 보고 ──
   let morning = `${courseLabel}${dateStr} 오전 출결 현황 공유\n`;
@@ -424,7 +435,10 @@ function analyze() {
     late.forEach(({ name, time }) => { morning += `\n  ◦ ${name}(지각 ${time})`; });
     absent.forEach(({ name }) => { morning += `\n  ◦ ${name}(미입실)`; });
   }
-  morning += `\n• 휴공가: 0명`;
+  morning += `\n• 휴공가: ${leaveList.length}명`;
+  if (leaveList.length > 0) {
+    leaveList.forEach(item => { morning += `\n  ◦ ${item}`; });
+  }
 
   // ── 오후 보고 ──
   let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
@@ -436,7 +450,10 @@ function analyze() {
       afternoon += `\n  ◦ ${name}: ${startTime}~${endStr} 외출`;
     });
   }
-  afternoon += `\n• 추가 휴공가: 0명`;
+  afternoon += `\n• 추가 휴공가: ${leaveList.length}명`;
+  if (leaveList.length > 0) {
+    leaveList.forEach(item => { afternoon += `\n  ◦ ${item}`; });
+  }
 
   // ── 최종 보고 ──
   const irregular = [];
@@ -465,7 +482,7 @@ function analyze() {
   document.getElementById('report-card').style.display = 'flex';
   switchTab(activeTab);
   setStatus(
-    `✅ 분석 완료 — 총 ${total}명 | 출석 ${presentCount}명 | 지각/미입실 ${lateAbsentCount}명 | 외출 ${outing.length}명`,
+    `✅ 분석 완료 — 총 ${total}명 | 출석 ${presentCount}명 | 지각/미입실 ${lateAbsentCount}명 | 외출 ${outing.length}명 | 휴공가 ${leaveList.length}명`,
     'ok'
   );
   document.getElementById('report-card').scrollIntoView({ behavior:'smooth' });
