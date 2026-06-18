@@ -442,7 +442,7 @@ function analyze() {
     : leaveList;
 
   let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
-  afternoon += `• ZEP 접속자: ${presentCount}명\n`;
+  afternoon += `• ZEP 접속자: nn명\n`;
   afternoon += `• 외출: ${outing.length}명`;
   if (outing.length > 0) {
     outing.forEach(({ name, startTime, endTime }) => {
@@ -560,7 +560,7 @@ function recomputeAfternoon() {
     ? leaveList.filter(item => !morningLeaveNames.some(n => item === n || item.startsWith(n + '(')))
     : leaveList;
   let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
-  afternoon += `• ZEP 접속자: ${presentCount}명\n`;
+  afternoon += `• ZEP 접속자: nn명\n`;
   afternoon += `• 외출: ${outing.length}명`;
   if (outing.length > 0) {
     outing.forEach(({ name, startTime, endTime }) => {
