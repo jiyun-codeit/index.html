@@ -239,6 +239,7 @@ textarea.small { min-height: 60px; font-family: inherit; font-size: 13px; }
 let reports = { morning:'', afternoon:'', final:'' };
 let activeTab = 'morning';
 let currentLeaveList = [];
+let lastAnalysisCtx = null;
 
 (function() {
   const now = new Date();
@@ -477,6 +478,7 @@ function analyze() {
   final += `\n  ◦ 검토 결과: ${reviewResult}`;
 
   currentLeaveList = leaveList;
+  lastAnalysisCtx = { courseLabel, dateStr, presentCount, outing, leaveList };
   reports = { morning, afternoon, final };
   document.getElementById('report-card').style.display = 'flex';
   switchTab(activeTab);
@@ -543,6 +545,37 @@ function saveMorningLeave() {
   const statusEl = document.getElementById('morning-leave-status');
   statusEl.textContent = '저장됨: ' + names.join(', ') + ' ✓';
   statusEl.style.color = '#22a06b';
+  recomputeAfternoon();
+}
+
+function recomputeAfternoon() {
+  if (!lastAnalysisCtx) return;
+  const { courseLabel, dateStr, presentCount, outing, leaveList } = lastAnalysisCtx;
+  const morningLeaveInput = document.getElementById('morning-leave').value;
+  const morningLeaveNames = morningLeaveInput
+    .split(/[,，\s]+/)
+    .map(n => n.trim())
+    .filter(Boolean);
+  const additionalLeave = morningLeaveNames.length > 0
+    ? leaveList.filter(item => !morningLeaveNames.some(n => item === n || item.startsWith(n + '(')))
+    : leaveList;
+  let afternoon = `${courseLabel}${dateStr} 오후 출결 현황 공유\n`;
+  afternoon += `• ZEP 접속자: ${presentCount}명\n`;
+  afternoon += `• 외출: ${outing.length}명`;
+  if (outing.length > 0) {
+    outing.forEach(({ name, startTime, endTime }) => {
+      const endStr = endTime ? endTime : '미복귀';
+      afternoon += `\n  ◦ ${name}: ${startTime}~${endStr} 외출`;
+    });
+  }
+  afternoon += `\n• 추가 휴공가: ${additionalLeave.length}명`;
+  if (additionalLeave.length > 0) {
+    additionalLeave.forEach(item => { afternoon += `\n  ◦ ${item}`; });
+  }
+  reports.afternoon = afternoon;
+  if (activeTab === 'afternoon') {
+    document.getElementById('report-text').textContent = afternoon;
+  }
 }
 
 function toggleColMap() {
